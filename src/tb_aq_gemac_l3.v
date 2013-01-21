@@ -33,7 +33,7 @@ module tb_aq_gemac_l3;
 	parameter	TIME10N	= 10000;
 	parameter	TIME8N	=  8000;
 
-	reg			RST;
+	reg			RST_N;
 
 	reg			BUFF_CLK;
 	wire			TX_BUFF_WE, TX_BUFF_START, TX_BUFF_END;
@@ -84,7 +84,7 @@ module tb_aq_gemac_l3;
 
 	aq_gemac u_aq_gemac(
 		// System Reset
-		.RST					( RST		),
+		.RST_N					( RST_N		),
 
 		// GMII,MII Interface
 		.TX_CLK				( MAC_CLK	),
@@ -131,7 +131,7 @@ module tb_aq_gemac_l3;
 	);
 
 	aq_gemac_l3_ctrl u_aq_gemac_l3_ctrl(
-		.RST				( RST		),
+		.RST_N				( RST_N		),
 		.CLK				( BUFF_CLK	),
 
 		// RX Buffer Interface
@@ -177,11 +177,11 @@ module tb_aq_gemac_l3;
 	assign 			COL		= 1'b0;
 
 	initial begin
-		RST			= 0;
+		RST_N			= 0;
 		BUFF_CLK	= 0;
 		MAC_CLK		= 0;
 		repeat (10) @(negedge BUFF_CLK);
-		RST			= 1;
+		RST_N			= 1;
 	end
 
 	always begin
@@ -218,7 +218,7 @@ module tb_aq_gemac_l3;
 		ETX_BUFF_END	= 0;
 		ETX_BUFF_DATA	= 32'd0;
 
-		wait(RST);
+		wait(RST_N);
 
 		repeat (10) @(negedge BUFF_CLK);
 

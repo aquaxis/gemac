@@ -24,17 +24,18 @@
 *
 * Create 2007/06/01 H.Ishihara
 * 2007/01/06 1st release
-* 1.02 2007/08/22 remove pause test
+* 2007/08/22 remove pause test
 * 2011/04/24 rename
+* 2013/01/22 modify
 */
 `timescale 1ps / 1ps
 
 module tb_aq_gemac_udp;
 
-	parameter	TIME10N	= 10000;
-	parameter	TIME8N	=  8000;
+	parameter	TIME10N	= 10000;	// 100MHz
+	parameter	TIME8N	=  8000;	// 125MHz
 
-	reg			RST;
+	reg			RST_N;
 
 	reg			BUFF_CLK;
 	reg			TX_BUFF_WE, TX_BUFF_START, TX_BUFF_END;
@@ -69,83 +70,84 @@ module tb_aq_gemac_udp;
 	reg [3:0]	MAX_RETRY;
 	reg			GIG_MODE;
 	reg			FULL_DUPLEX;
+	
+	reg			CLK100M;
+	reg			CLK125M;
 
-module aq_gemac_udp(
-    RST_N,
+	aq_gemac_udp u_aq_gemac_udp(
+		.RST_N			( RST_N		),
 
-    CLK100M,
+		.CLK100M		( CLK100M	),
 
-    EMAC_CLK125M, // Clock 125MHz
+		.EMAC_CLK125M	( CLK125M	),
 
-    EMAC_GTX_CLK, // Tx Clock(Out) for 1000 Mode
-    EMAC_TX_CLK,    // Tx Clock(In)  for 10/100 Mode
-    EMAC_TXD,       // Tx Data
-    EMAC_TX_EN,     // Tx Data Enable
-    EMAC_TX_ER,     // Tx Error
-    EMAC_COL,       // Collision signal
-    EMAC_CRS,       // CRS
+		.EMAC_GTX_CLK	( EMAC_GTX_CLK	),
+		.EMAC_TX_CLK	( EMAC_TX_CLK	),
+		.EMAC_TXD		( EMAC_TXD		),
+		.EMAC_TX_EN		( EMAC_TX_EN	),
+		.EMAC_TX_ER		( EMAC_TX_ER	),
+		.EMAC_COL		( EMAC_COL		),
+		.EMAC_CRS		( EMAC_CRS		),
 
-    EMAC_RX_CLK,    // Rx Clock(In)  for 10/100/1000 Mode
-    EMAC_RXD,       // Rx Data
-    EMAC_RX_DV,     // Rx Data Valid
-    EMAC_RX_ER,     // Rx Error
+		.EMAC_RX_CLK	( EMAC_RX_CLK	),
+		.EMAC_RXD		( EMAC_RXD		),
+		.EMAC_RX_DV		( EMAC_RX_DV	),
+		.EMAC_RX_ER		( EMAC_RX_ER	),
 
-    EMAC_INT,     // Interrupt
-    EMAC_RST,
+		.EMAC_INT		( EMAC_INT		),
+		.EMAC_RST		( EMAC_RST		),
 
-    MIIM_MDC,     // MIIM Clock
-    MIIM_MDIO,    // MIIM I/O
+		.MIIM_MDC		( MIIM_MDC		),
+		.MIIM_MDIO		( MIIM_MDIO		),
 
-        .UDP_PEER_MAC_ADDRESS   ( peer_mac_address      ),
-        .UDP_PEER_IP_ADDRESS    ( DEFAULT_PEER_IP_ADRS       ),
-        .UDP_MY_MAC_ADDRESS     ( DEFAULT_MY_MAC_ADRS        ),
-        .UDP_MY_IP_ADDRESS      ( DEFAULT_MY_IP_ADRS         ),
+		.UDP_PEER_MAC_ADDRESS   ( peer_mac_address		),
+		.UDP_PEER_IP_ADDRESS	( DEFAULT_PEER_IP_ADRS	),
+		.UDP_MY_MAC_ADDRESS		( DEFAULT_MY_MAC_ADRS	),
+		.UDP_MY_IP_ADDRESS		( DEFAULT_MY_IP_ADRS	),
 
-        // Send UDP
-        .UDP_SEND_REQUEST       ( udp_send_request      ),
-        .UDP_SEND_LENGTH        ( {4'd0, udp_send_length}       ),
-        .UDP_SEND_BUSY          ( udp_send_busy         ),
-        .UDP_SEND_DSTPORT       ( DEFAULT_MY_SEND_PORT  ),
-        .UDP_SEND_SRCPORT       ( udp_send_srcport      ),
-        .UDP_SEND_DATA_VALID    ( udp_send_data_valid   ),
-        .UDP_SEND_DATA_READ     ( udp_send_data_read    ),
-        .UDP_SEND_DATA          ( udp_send_data         ),
+		// Send UDP
+		.UDP_SEND_REQUEST		( udp_send_request		),
+		.UDP_SEND_LENGTH		( {4'd0, udp_send_length}	   ),
+		.UDP_SEND_BUSY			( udp_send_busy			),
+		.UDP_SEND_DSTPORT		( DEFAULT_MY_SEND_PORT	),
+		.UDP_SEND_SRCPORT		( udp_send_srcport		),
+		.UDP_SEND_DATA_VALID	( udp_send_data_valid	),
+		.UDP_SEND_DATA_READ		( udp_send_data_read	),
+		.UDP_SEND_DATA			( udp_send_data			),
 
-        // Receive UDP
-        .UDP_REC_REQUEST        ( udp_rec_request       ),
-        .UDP_REC_LENGTH         ( udp_rec_length        ),
-        .UDP_REC_BUSY           ( udp_rec_busy          ),
-        .UDP_REC_DSTPORT0       ( DEFAULT_MY_REC0_PORT  ),
-        .UDP_REC_DSTPORT1       ( DEFAULT_MY_REC1_PORT  ),
-        .UDP_REC_DATA_VALID0    ( udp_rec_data_valid0   ),
-        .UDP_REC_DATA_VALID1    ( udp_rec_data_valid1   ),
-        .UDP_REC_DATA_READ      ( udp_rec_data_read     ),
-        .UDP_REC_DATA           ( udp_rec_data          ),
-
-
+		// Receive UDP
+		.UDP_REC_REQUEST		( udp_rec_request		),
+		.UDP_REC_LENGTH			( udp_rec_length		),
+		.UDP_REC_BUSY			( udp_rec_busy			),
+		.UDP_REC_DSTPORT0		( DEFAULT_MY_REC0_PORT	),
+		.UDP_REC_DSTPORT1		( DEFAULT_MY_REC1_PORT	),
+		.UDP_REC_DATA_VALID0	( udp_rec_data_valid0	),
+		.UDP_REC_DATA_VALID1	( udp_rec_data_valid1	),
+		.UDP_REC_DATA_READ		( udp_rec_data_read		),
+		.UDP_REC_DATA			( udp_rec_data			)
 );
 
 
-	assign #100		RXD		= TXD;
-	assign #100		RX_DV	= TX_EN;
-	assign #100		RX_ER	= TX_ER;
-	assign #100		CRS		= TX_EN;
-	assign 			COL		= 1'b0;
+	assign #100		EMAC_RXD	= EMAC_TXD;
+	assign #100		EMAC_RX_DV	= EMAC_TX_EN;
+	assign #100		EMAC_RX_ER	= EMAC_TX_ER;
+	assign #100		EMAC_CRS	= EMAC_TX_EN;
+	assign 			EMAC_COL	= 1'b0;
 
 	initial begin
-		RST			= 0;
-		BUFF_CLK	= 0;
-		MAC_CLK		= 0;
-		repeat (10) @(negedge BUFF_CLK);
-		RST			= 1;
+		RST_N		= 0;
+		CLK100M		= 0;
+		CLK125M		= 0;
+		repeat (10) @(negedge CLK100M);
+		RST_N		= 1;
 	end
 
 	always begin
-	    #(TIME10N/2) BUFF_CLK <= ~BUFF_CLK;
+		#(TIME10N/2) CLK100M <= ~CLK100M;
 	end
 
 	always begin
-	    #(TIME8N/2) MAC_CLK <= ~MAC_CLK;
+		#(TIME8N/2) CLK125M <= ~CLK125M;
 	end
 
 	task WRITE;
@@ -157,12 +159,12 @@ module aq_gemac_udp(
 
 			TX_BUFF_WE		= 1;
 			TX_BUFF_START	= Start;
-			TX_BUFF_END	= End;
+			TX_BUFF_END		= End;
 			TX_BUFF_DATA	= Data;
 			@(negedge BUFF_CLK);
 			TX_BUFF_WE		= 0;
 			TX_BUFF_START	= 0;
-			TX_BUFF_END	= 0;
+			TX_BUFF_END		= 0;
 			TX_BUFF_DATA	= 32'd0;
 			@(negedge BUFF_CLK);
 		end
@@ -357,13 +359,13 @@ module aq_gemac_udp(
 
 		repeat (1000) @(negedge BUFF_CLK);
 
-        PAUSE_QUANTA_DATA   = 16'h0800;
-        PAUSE_SEND_ENABLE   = 0;
-        TX_PAUSE_ENABLE     = 0;
+		PAUSE_QUANTA_DATA   = 16'h0800;
+		PAUSE_SEND_ENABLE   = 0;
+		TX_PAUSE_ENABLE	 = 0;
 */
-        repeat (1000) @(negedge BUFF_CLK);
+		repeat (1000) @(negedge BUFF_CLK);
 
-        $finish();
+		$finish();
 
 	end
 
