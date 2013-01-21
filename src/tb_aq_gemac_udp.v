@@ -31,48 +31,64 @@
 `timescale 1ps / 1ps
 
 module tb_aq_gemac_udp;
+	parameter MY_MAC_ADRS  = 48'h332211000000;
+	parameter MY_IP_ADRS   = 32'h5A00A8C0;		// 192.168.0.90
+	parameter REC_DSTPORT0 = 16'd0004;			// 1024
+	parameter REC_DSTPORT1 = 16'd0104;			// 1025
+	parameter REC_DSTPORT2 = 16'd0204;			// 1026
+	parameter REC_DSTPORT3 = 16'd0304;			// 1027
+	parameter SEND_DSTPORT = 16'd0004;			// 1024
+	parameter PEER_IP_ADRS = 32'h1A00A8C0;		// 192.168.0.26
 
 	parameter	TIME10N	= 10000;	// 100MHz
 	parameter	TIME8N	=  8000;	// 125MHz
 
 	reg			RST_N;
 
-	reg			BUFF_CLK;
-	reg			TX_BUFF_WE, TX_BUFF_START, TX_BUFF_END;
-	wire		TX_BUFF_READY;
-	reg	[31:0]	TX_BUFF_DATA;
-	wire		TX_BUFF_FULL;
-
-	reg				RX_BUFF_RE;
-	wire			RX_BUFF_EMPTY;
-	wire [31:0]		RX_BUFF_DATA;
-	wire			RX_BUFF_VALID;
-	wire [15:0]			RX_BUFF_LENGTH;
-	wire [15:0]			RX_BUFF_STATUS;
-
-	reg			MAC_CLK;
-
-	wire [7:0]	TXD;
-	wire		TX_EN;
-	wire		TX_ER;
-	wire		CRS;
-	wire		COL;
-	wire [7:0]	RXD;
-	wire		RX_DV;
-	wire		RX_ER;
-
-	reg [15:0]	PAUSE_QUANTA_DATA;
-	reg			PAUSE_SEND_ENABLE;
-	reg			TX_PAUSE_ENABLE;
-
-	reg [47:0]	MAC_ADDRESS;
-	reg			RANDOM_TIME_MEET;
-	reg [3:0]	MAX_RETRY;
-	reg			GIG_MODE;
-	reg			FULL_DUPLEX;
-	
 	reg			CLK100M;
-	reg			CLK125M;
+
+	reg			EMAC_CLK125M;	// Clock 125MHz
+	wire		EMAC_GTX_CLK;	// Tx Clock(Out) for 1000 Mode
+
+	reg			EMAC_TX_CLK;	// Tx Clock(In)  for 10/100 Mode
+	wire [7:0]	EMAC_TXD;		// Tx Data
+	wire			EMAC_TX_EN;		// Tx Data Enable
+	wire			EMAC_TX_ER;		// Tx Error
+	wire			EMAC_COL;		// Collision signal
+	wire			EMAC_CRS;		// CRS
+
+	wire			EMAC_RX_CLK;	// Rx Clock(In)  for 10/100/1000 Mode
+	wire [7:0]		EMAC_RXD;		// Rx Data
+	wire			EMAC_RX_DV;		// Rx Data Valid
+	wire			EMAC_RX_ER;		// Rx Error
+
+	reg			EMAC_INT;		// Interrupt
+	wire			EMAC_RST;
+
+	reg			MIIM_MDC;		// MIIM Clock
+	reg			MIIM_MDIO;		// MIIM I/O
+
+	wire [47:0]	PEER_MAC_ADDRESS;
+	reg [31:0]	PEER_IP_ADDRESS;
+	reg [47:0]	MY_MAC_ADDRESS;
+	reg [31:0]	MY_IP_ADDRESS;
+
+	// Send UDP
+	reg			SEND_REQUEST;
+	reg [15:0]	SEND_LENGTH;
+	wire			SEND_BUSY;
+	reg [15:0]	SEND_SRCPORT;
+	reg			SEND_DATA_VALID;
+	wire			SEND_DATA_READ;
+	reg [31:0]	SEND_DATA;
+
+	// Receive UDP
+	wire			REC_REQUEST;
+	wire [15:0]	REC_LENGTH;
+	wire			REC_BUSY;
+	wire [3:0]	REC_DATA_VALID;
+	reg			REC_DATA_READ;
+	wire [31:0]	REC_DATA;
 
 	aq_gemac_udp u_aq_gemac_udp(
 		.RST_N			( RST_N		),
@@ -100,44 +116,46 @@ module tb_aq_gemac_udp;
 		.MIIM_MDC		( MIIM_MDC		),
 		.MIIM_MDIO		( MIIM_MDIO		),
 
-		.UDP_PEER_MAC_ADDRESS   ( peer_mac_address		),
-		.UDP_PEER_IP_ADDRESS	( DEFAULT_PEER_IP_ADRS	),
-		.UDP_MY_MAC_ADDRESS		( DEFAULT_MY_MAC_ADRS	),
-		.UDP_MY_IP_ADDRESS		( DEFAULT_MY_IP_ADRS	),
+		.PEER_MAC_ADDRESS   ( PEER_MAC_ADDRESS		),
+		.PEER_IP_ADDRESS	( PEER_IP_ADRS	),
+		.MY_MAC_ADDRESS		( MY_MAC_ADRS	),
+		.MY_IP_ADDRESS		( MY_IP_ADRS	),
 
 		// Send UDP
-		.UDP_SEND_REQUEST		( udp_send_request		),
-		.UDP_SEND_LENGTH		( {4'd0, udp_send_length}	   ),
-		.UDP_SEND_BUSY			( udp_send_busy			),
-		.UDP_SEND_DSTPORT		( DEFAULT_MY_SEND_PORT	),
-		.UDP_SEND_SRCPORT		( udp_send_srcport		),
-		.UDP_SEND_DATA_VALID	( udp_send_data_valid	),
-		.UDP_SEND_DATA_READ		( udp_send_data_read	),
-		.UDP_SEND_DATA			( udp_send_data			),
+		.SEND_REQUEST		( SEND_REQUEST		),
+		.SEND_LENGTH		( SEND_LENGTH	   ),
+		.SEND_BUSY			( SEND_BUSY			),
+		.SEND_DSTPORT		( SEND_DSTPORT	),
+		.SEND_SRCPORT		( SEND_SRCPORT		),
+		.SEND_DATA_VALID	( SEND_DATA_VALID	),
+		.SEND_DATA_READ		( SEND_DATA_READ	),
+		.SEND_DATA			( SEND_DATA			),
 
 		// Receive UDP
-		.UDP_REC_REQUEST		( udp_rec_request		),
-		.UDP_REC_LENGTH			( udp_rec_length		),
-		.UDP_REC_BUSY			( udp_rec_busy			),
-		.UDP_REC_DSTPORT0		( DEFAULT_MY_REC0_PORT	),
-		.UDP_REC_DSTPORT1		( DEFAULT_MY_REC1_PORT	),
-		.UDP_REC_DATA_VALID0	( udp_rec_data_valid0	),
-		.UDP_REC_DATA_VALID1	( udp_rec_data_valid1	),
-		.UDP_REC_DATA_READ		( udp_rec_data_read		),
-		.UDP_REC_DATA			( udp_rec_data			)
+		.REC_REQUEST		( REC_REQUEST		),
+		.REC_LENGTH			( REC_LENGTH		),
+		.REC_BUSY			( REC_BUSY			),
+		.REC_DSTPORT0		( REC_DSTPORT0	),
+		.REC_DSTPORT1		( REC_DSTPORT1	),
+		.REC_DSTPORT2		( REC_DSTPORT2	),
+		.REC_DSTPORT3		( REC_DSTPORT3	),
+		.REC_DATA_VALID		( REC_DATA_VALID	),
+		.REC_DATA_READ		( REC_DATA_READ		),
+		.REC_DATA			( REC_DATA			)
 );
-
 
 	assign #100		EMAC_RXD	= EMAC_TXD;
 	assign #100		EMAC_RX_DV	= EMAC_TX_EN;
 	assign #100		EMAC_RX_ER	= EMAC_TX_ER;
 	assign #100		EMAC_CRS	= EMAC_TX_EN;
 	assign 			EMAC_COL	= 1'b0;
+	
+	assign EMAC_GTX_CLK = EMAC_RX_CLK;
 
 	initial begin
 		RST_N		= 0;
 		CLK100M		= 0;
-		CLK125M		= 0;
+		EMAC_CLK125M		= 0;
 		repeat (10) @(negedge CLK100M);
 		RST_N		= 1;
 	end
@@ -147,9 +165,9 @@ module tb_aq_gemac_udp;
 	end
 
 	always begin
-		#(TIME8N/2) CLK125M <= ~CLK125M;
+		#(TIME8N/2) EMAC_CLK125M <= ~EMAC_CLK125M;
 	end
-
+/*
 	task WRITE;
 		input			Start;
 		input			End;
@@ -176,7 +194,7 @@ module tb_aq_gemac_udp;
 		TX_BUFF_END	= 0;
 		TX_BUFF_DATA	= 32'd0;
 
-		wait(RST);
+		wait(RST_N);
 
 		repeat (10) @(negedge BUFF_CLK);
 
@@ -352,6 +370,7 @@ module tb_aq_gemac_udp;
 		WRITE(1'b0,1'b1,32'h33323130);
 
 		repeat (10) @(negedge BUFF_CLK);
+*/
 /*
 		PAUSE_QUANTA_DATA	= 16'h0800;
 		PAUSE_SEND_ENABLE	= 1;
@@ -363,6 +382,7 @@ module tb_aq_gemac_udp;
 		PAUSE_SEND_ENABLE   = 0;
 		TX_PAUSE_ENABLE	 = 0;
 */
+/*
 		repeat (1000) @(negedge BUFF_CLK);
 
 		$finish();
@@ -559,6 +579,5 @@ module tb_aq_gemac_udp;
 
 		//$finish();
 	end
-
-
+*/
 endmodule

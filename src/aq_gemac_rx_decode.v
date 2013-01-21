@@ -64,7 +64,7 @@ module aq_gemac_rx_decode(
 	input [15:0]	PORT2,
 	input [15:0]	PORT3,
 
-	output [31:0]	STATUS
+	output [15:0]	STATUS
 );
 
 	reg [1:0]	State;

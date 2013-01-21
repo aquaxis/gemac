@@ -57,7 +57,7 @@ module aq_gemac(
 	output			RX_BUFF_EMPTY,		// RX Buffer Empty(1: Empty, 0: No Empty)
 	output			RX_BUFF_VALID,		// RX Buffer Valid
 	output [15:0]	RX_BUFF_LENGTH,		// RX Buffer Length
-	output [31:0]	RX_BUFF_STATUS,		// RX Buffer Status
+	output [15:0]	RX_BUFF_STATUS,		// RX Buffer Status
 
 	// TX Buffer Interface
 	input			TX_BUFF_WE,			// TX Buffer Write Enable

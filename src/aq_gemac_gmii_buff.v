@@ -35,8 +35,8 @@ module aq_gemac_gmii_buff(
 	input [7:0]		bgmii_txd,
 	input			bgmii_txe,
 	input			bgmii_txer,
-	output			bgmii_rxd,
-	output [7:0]	bgmii_rxe,
+	output [7:0]	bgmii_rxd,
+	output 			bgmii_rxe,
 	output			bgmii_rxer,
 	output			bgmii_cos,
 	output			bgmii_crs,
@@ -380,41 +380,49 @@ module aq_gemac_gmii_buff(
 	FDC u_crs( .C(tx_clk), .D(gmii_crs_id ), .Q(bgmii_crs   ), .CLR(~rst_b));
 
 `else
-	reg			gmii_txe, gmii_txer;
-	reg [7:0]	gmii_txd;
-	reg			bgmii_rxe, bgmii_rxer;
-	reg [7:0]	bgmii_rxd;
-	reg			bgmii_col, bgmii_crs;
+	reg			gmii_txe_b, gmii_txer_b;
+	reg [7:0]	gmii_txd_b;
+	reg			bgmii_rxe_b, bgmii_rxer_b;
+	reg [7:0]	bgmii_rxd_b;
+	reg			bgmii_col_b, bgmii_crs_b;
 
 	// TX Data
 	always @(negedge tx_clk or negedge rst_b) begin
 		if(!rst_b) begin
-			gmii_txe	<= 1'b0;
-			gmii_txer	<= 1'b0;
-			gmii_txd	<= 8'd0;
-			bgmii_col	<= 1'b0;
-			bgmii_crs	<= 1'b0;
+			gmii_txe_b	<= 1'b0;
+			gmii_txer_b	<= 1'b0;
+			gmii_txd_b	<= 8'd0;
+			bgmii_col_b	<= 1'b0;
+			bgmii_crs_b	<= 1'b0;
 		end else begin
-			gmii_txe	<= bgmii_txe;
-			gmii_txe	<= bgmii_txer;
-			gmii_txd	<= bgmii_txd;
-			bgmii_col	<= gmii_col;
-			bgmii_crs	<= gmii_crs;
+			gmii_txe_b	<= bgmii_txe;
+			gmii_txe_b	<= bgmii_txer;
+			gmii_txd_b	<= bgmii_txd;
+			bgmii_col_b	<= gmii_col;
+			bgmii_crs_b	<= gmii_crs;
 		end
 	end
 	assign gmii_gtk_clk = tx_clk;
+	assign gmii_txe		= gmii_txe_b;
+	assign gmii_txe		= gmii_txer_b;
+	assign gmii_txd		= gmii_txd_b;
+	assign bgmii_col	= bgmii_col_b;
+	assign bgmii_crs	= bgmii_crs_b;
 
 	// Rx
 	always @(negedge rx_clk or negedge rst_b) begin
 		if(!rst_b) begin
-			bgmii_rxe	<= 1'b0;
-			bgmii_rxer	<= 1'b0;
-			bgmii_rxd	<= 8'd0;
+			bgmii_rxe_b		<= 1'b0;
+			bgmii_rxer_b	<= 1'b0;
+			bgmii_rxd_b		<= 8'd0;
 		end else begin
-			bgmii_rxe	<= gmii_rxe;
-			bgmii_rxer	<= gmii_rxer;
-			bgmii_rxd	<= gmii_rxd;
+			bgmii_rxe_b		<= gmii_rxe;
+			bgmii_rxer_b	<= gmii_rxer;
+			bgmii_rxd_b		<= gmii_rxd;
 		end
 	end
+	assign bgmii_rxe	= bgmii_rxe_b;
+	assign bgmii_rxer	= bgmii_rxer_b;
+	assign bgmii_rxd	= bgmii_rxd_b;
 `endif
 endmodule

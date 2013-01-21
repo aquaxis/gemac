@@ -52,38 +52,33 @@ module aq_gemac_udp(
 	input			MIIM_MDC,		// MIIM Clock
 	input			MIIM_MDIO,		// MIIM I/O
 
-	output [47:0]	UDP_PEER_MAC_ADDRESS,
-	input [31:0]	UDP_PEER_IP_ADDRESS,
-	input [47:0]	UDP_MY_MAC_ADDRESS,
-	input [31:0]	UDP_MY_IP_ADDRESS,
+	output [47:0]	PEER_MAC_ADDRESS,
+	input [31:0]	PEER_IP_ADDRESS,
+	input [47:0]	MY_MAC_ADDRESS,
+	input [31:0]	MY_IP_ADDRESS,
 
 	// Send UDP
-	input			UDP_SEND_REQUEST,
-	input [15:0]	UDP_SEND_LENGTH,
-	output			UDP_SEND_BUSY,
-	input [15:0]	UDP_SEND_DSTPORT,
-	input [15:0]	UDP_SEND_SRCPORT,
-	input			UDP_SEND_DATA_VALID,
-	output			UDP_SEND_DATA_READ,
-	input [31:0]	UDP_SEND_DATA,
+	input			SEND_REQUEST,
+	input [15:0]	SEND_LENGTH,
+	output			SEND_BUSY,
+	input [15:0]	SEND_DSTPORT,
+	input [15:0]	SEND_SRCPORT,
+	input			SEND_DATA_VALID,
+	output			SEND_DATA_READ,
+	input [31:0]	SEND_DATA,
 
 	// Receive UDP
-	output			UDP_REC_REQUEST,
-	output [15:0]	UDP_REC_LENGTH,
-	output			UDP_REC_BUSY,
-	input [15:0]	UDP_REC_DSTPORT0,
-	input [15:0]	UDP_REC_DSTPORT1,
-	output			UDP_REC_DATA_VALID0,
-	output			UDP_REC_DATA_VALID1,
-	input			UDP_REC_DATA_READ,
-	output [31:0]	UDP_REC_DATA
+	output			REC_REQUEST,
+	output [15:0]	REC_LENGTH,
+	output			REC_BUSY,
+	input [15:0]	REC_DSTPORT0,
+	input [15:0]	REC_DSTPORT1,
+	input [15:0]	REC_DSTPORT2,
+	input [15:0]	REC_DSTPORT3,
+	output [3:0]	REC_DATA_VALID,
+	input			REC_DATA_READ,
+	output [31:0]	REC_DATA
 );
-	parameter DEFAULT_MY_MAC_ADRS  = 48'h332211000000;
-	parameter DEFAULT_MY_IP_ADRS   = 32'h5A00A8C0;		// 192.168.0.90
-	parameter DEFAULT_MY_REC0_PORT = 16'd0004;			// 1024
-	parameter DEFAULT_MY_REC1_PORT = 16'd0104;			// 1025
-	parameter DEFAULT_MY_SEND_PORT = 16'd0004;			// 1024
-	parameter DEFAULT_PEER_IP_ADRS = 32'h1A00A8C0;		// 192.168.0.26
 
 	wire		sys_clk;
 	assign sys_clk = EMAC_CLK125M;
@@ -116,7 +111,6 @@ module aq_gemac_udp(
 	wire [15:0]	erx_buff_length;
 	wire [15:0]	erx_buff_status;
 
-
 	wire [15:0]	pause_quanta_data;
 	wire		pause_send_enable;
 	wire		tx_pause_enable;
@@ -128,28 +122,9 @@ module aq_gemac_udp(
 
 	wire		arpc_enable, arpc_request, arpc_valid;
 
-	wire		udp_send_request;
-	wire [11:0]	udp_send_length;
-	wire		udp_send_busy;
-	wire [15:0]	udp_send_dstport;
-	wire [15:0]	udp_send_srcport;
-	wire		udp_send_data_valid;
-	wire		udp_send_data_read;
-	wire [31:0]	udp_send_data;
-
-	wire		udp_rec_request;
-	wire [15:0]	udp_rec_length;
-	wire		udp_rec_busy;
-	wire [15:0]	udp_rec_dstport0;
-	wire [15:0]	udp_rec_dstport1;
-	wire		udp_rec_data_valid0;
-	wire		udp_rec_data_valid1;
-	wire		udp_rec_data_read, udp_rec0_data_read, udp_rec1_data_read;
-	wire [31:0]	udp_rec_data;
-
 	wire [15:0]	l3_ext_status;
 
-	wire [47:0]	peer_mac_address;
+	wire [47:0]	peer_mac_address_i;
 
 	// Ethernet MAC
 	assign EMAC_RST = 1'b1;
@@ -204,37 +179,39 @@ module aq_gemac_udp(
 		.gmii_gtk_clk	( EMAC_GTX_CLK  )
 	);
 `endif
+	assign PEER_MAC_ADDRESS = peer_mac_address_i;
 
 	// UDP Controller
 	aq_gemac_udp_ctrl u_aq_gemac_udp_ctrl(
 		.RST_N					( RST_N					),
 		.CLK					( sys_clk				),
 
-		.UDP_PEER_MAC_ADDRESS   ( peer_mac_address		),
-		.UDP_PEER_IP_ADDRESS	( DEFAULT_PEER_IP_ADRS	),
-		.UDP_MY_MAC_ADDRESS		( DEFAULT_MY_MAC_ADRS	),
-		.UDP_MY_IP_ADDRESS		( DEFAULT_MY_IP_ADRS	),
+		.PEER_MAC_ADDRESS   ( peer_mac_address_i		),
+		.PEER_IP_ADDRESS	( PEER_IP_ADDRESS	),
+		.MY_MAC_ADDRESS		( MY_MAC_ADDRESS	),
+		.MY_IP_ADDRESS		( MY_IP_ADDRESS	),
 
 		// Send UDP
-		.UDP_SEND_REQUEST		( udp_send_request		),
-		.UDP_SEND_LENGTH		( {4'd0, udp_send_length}	),
-		.UDP_SEND_BUSY			( udp_send_busy			),
-		.UDP_SEND_DSTPORT		( DEFAULT_MY_SEND_PORT	),
-		.UDP_SEND_SRCPORT		( udp_send_srcport		),
-		.UDP_SEND_DATA_VALID	( udp_send_data_valid	),
-		.UDP_SEND_DATA_READ		( udp_send_data_read	),
-		.UDP_SEND_DATA			( udp_send_data			),
+		.SEND_REQUEST		( SEND_REQUEST		),
+		.SEND_LENGTH		( SEND_LENGTH		),
+		.SEND_BUSY			( SEND_BUSY			),
+		.SEND_DSTPORT		( SEND_DSTPORT		),
+		.SEND_SRCPORT		( SEND_SRCPORT		),
+		.SEND_DATA_VALID	( SEND_DATA_VALID	),
+		.SEND_DATA_READ		( SEND_DATA_READ	),
+		.SEND_DATA			( SEND_DATA			),
 
 		// Receive UDP
-		.UDP_REC_REQUEST		( udp_rec_request		),
-		.UDP_REC_LENGTH			( udp_rec_length		),
-		.UDP_REC_BUSY			( udp_rec_busy			),
-		.UDP_REC_DSTPORT0		( DEFAULT_MY_REC0_PORT	),
-		.UDP_REC_DSTPORT1		( DEFAULT_MY_REC1_PORT	),
-		.UDP_REC_DATA_VALID0	( udp_rec_data_valid0	),
-		.UDP_REC_DATA_VALID1	( udp_rec_data_valid1	),
-		.UDP_REC_DATA_READ		( udp_rec_data_read		),
-		.UDP_REC_DATA			( udp_rec_data			),
+		.REC_REQUEST		( REC_REQUEST		),
+		.REC_LENGTH			( REC_LENGTH		),
+		.REC_BUSY			( REC_BUSY			),
+		.REC_DSTPORT0		( REC_DSTPORT0		),
+		.REC_DSTPORT1		( REC_DSTPORT1		),
+		.REC_DSTPORT2		( REC_DSTPORT2		),
+		.REC_DSTPORT3		( REC_DSTPORT3		),
+		.REC_DATA_VALID		( REC_DATA_VALID	),
+		.REC_DATA_READ		( REC_DATA_READ		),
+		.REC_DATA			( REC_DATA			),
 
 		// for ETHER-MAC BUFFER
 		.TX_WE					( etx_buff_we		),
@@ -250,7 +227,22 @@ module aq_gemac_udp(
 		.RX_EMPTY				( erx_buff_empty	),
 		.RX_VALID				( erx_buff_valid	),
 		.RX_LENGTH				( erx_buff_length	),
-		.RX_STATUS				( erx_buff_status	)
+		.RX_STATUS				( erx_buff_status	),
+		
+		.ETX_WE					( 1'b0				),
+		.ETX_START				( 1'b0				),
+		.ETX_END				( 1'b0				),
+		.ETX_READY				(),
+		.ETX_DATA				( 32'd0				),
+		.ETX_FULL				(),
+		.ETX_SPACE				(),
+
+		.ERX_RE					( 1'b0				),
+		.ERX_DATA				(),
+		.ERX_EMPTY				(),
+		.ERX_VALID				(),
+		.ERX_LENGTH				(),
+		.ERX_STATUS				()
 	);
 
 	// Layer 3 Extension
@@ -292,17 +284,18 @@ module aq_gemac_udp(
 		.ETX_BUFF_FULL		( etx_buff_full			),
 		.ETX_BUFF_SPACE		( etx_buff_space		),
 
-		.MAC_ADDRESS		( DEFAULT_MY_MAC_ADRS	),
-		.IP_ADDRESS			( DEFAULT_MY_IP_ADRS	),
+		.MAC_ADDRESS		( MY_MAC_ADDRESS	),
+		.IP_ADDRESS			( MY_IP_ADDRESS	),
 
 		.ARPC_ENABLE		( arpc_enable			),
 		.ARPC_REQUEST		( arpc_request			),
 		.ARPC_VALID			( arpc_valid			),
-		.ARPC_IP_ADDRESS	( DEFAULT_PEER_IP_ADRS	),
-		.ARPC_MAC_ADDRESS   ( peer_mac_address		),
+		.ARPC_IP_ADDRESS	( PEER_IP_ADDRESS	),
+		.ARPC_MAC_ADDRESS   ( peer_mac_address_i		),
 
 		.STATUS				( l3_ext_status			)
 	);
+	
 	// Ethernet MAC
 	aq_gemac u_aq_gemac(
 		.RST_N				( RST_N					),
@@ -346,8 +339,12 @@ module aq_gemac_udp(
 
 		// Setting
 		.RANDOM_TIME_MEET   ( random_time_meet		),
-		.MAC_ADDRESS		( DEFAULT_MY_MAC_ADRS	),
-		.IP_ADDRESS			( DEFAULT_MY_IP_ADRS	),
+		.MAC_ADDRESS		( MY_MAC_ADDRESS			),
+		.IP_ADDRESS			( MY_IP_ADDRESS			),
+		.PORT0				( REC_DSTPORT0			),
+		.PORT1				( REC_DSTPORT1			),
+		.PORT2				( REC_DSTPORT2			),
+		.PORT3				( REC_DSTPORT3			),
 		.MAX_RETRY			( max_retry				),
 		.GIG_MODE			( giga_mode				),
 		.FULL_DUPLEX		( full_duplex			)
