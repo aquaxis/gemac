@@ -116,7 +116,7 @@ module aq_gemac_l3(
 		.ETX_BUFF_FULL		( etx_buff_full		),
 
 		.MAC_ADDRESS		( mac_address		),
-		.IP_ADDRESS			( ip_address		)
+		.IP_ADDRESS			( ip_address		),
 
 		.ARPC_ENABLE		( ),
 		.ARPC_REQUEST		( ),

@@ -225,9 +225,9 @@ module aq_gemac_ipctrl(
 		.CLK				( SYS_CLK				),
 
 		.PEER_MAC_ADDRESS   ( peer_mac_address_o	),
-		.PEER_IP_ADDRESS	( PEER_IP_ADRS			),
-		.MY_MAC_ADDRESS		( MY_MAC_ADRS			),
-		.MY_IP_ADDRESS		( MY_IP_ADRS			),
+		.PEER_IP_ADDRESS	( PEER_IP_ADDRESS			),
+		.MY_MAC_ADDRESS		( MY_MAC_ADDRESS			),
+		.MY_IP_ADDRESS		( MY_IP_ADDRESS			),
 
 		// Send UDP
 		.SEND_REQUEST		( SEND_REQUEST			),
@@ -322,13 +322,13 @@ module aq_gemac_ipctrl(
 		.ETX_BUFF_FULL		( etx_buff_full			),
 		.ETX_BUFF_SPACE		( etx_buff_space		),
 
-		.MAC_ADDRESS		( MY_MAC_ADRS			),
-		.IP_ADDRESS			( MY_IP_ADRS			),
+		.MAC_ADDRESS		( MY_MAC_ADDRESS			),
+		.IP_ADDRESS			( MY_IP_ADDRESS			),
 
 		.ARPC_ENABLE		( ARPC_ENABLE			),
 		.ARPC_REQUEST		( ARPC_REQUEST			),
 		.ARPC_VALID			( ARPC_VALID			),
-		.ARPC_IP_ADDRESS	( PEER_IP_ADRS			),
+		.ARPC_IP_ADDRESS	( PEER_IP_ADDRESS			),
 		.ARPC_MAC_ADDRESS   ( peer_mac_address_o	),
 
 		.STATUS				( l3_ext_status			)
@@ -378,8 +378,8 @@ module aq_gemac_ipctrl(
 
 		// Setting
 		.RANDOM_TIME_MEET   ( random_time_meet	),
-		.MAC_ADDRESS		( MY_MAC_ADRS		),
-		.IP_ADDRESS			( MY_IP_ADRS		),
+		.MAC_ADDRESS		( MY_MAC_ADDRESS		),
+		.IP_ADDRESS			( MY_IP_ADDRESS		),
 		.PORT0				( PORT0				),
 		.PORT1				( PORT1				),
 		.PORT2				( PORT2				),
@@ -410,4 +410,3 @@ module aq_gemac_ipctrl(
 	);
 	assign MDIO = (miim_mdio_e)?miim_mdio_o:1'bZ;
 endmodule
-

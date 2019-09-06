@@ -1,4 +1,4 @@
-module ETHER_UDP_LOOP(
+module ether_udp_loop(
 	RST,
 	CLK,
 

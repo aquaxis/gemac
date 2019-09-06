@@ -396,7 +396,7 @@ module aq_gemac_gmii_buff(
 			bgmii_crs_b	<= 1'b0;
 		end else begin
 			gmii_txe_b	<= bgmii_txe;
-			gmii_txe_b	<= bgmii_txer;
+			gmii_txer_b	<= bgmii_txer;
 			gmii_txd_b	<= bgmii_txd;
 			bgmii_col_b	<= gmii_col;
 			bgmii_crs_b	<= gmii_crs;
@@ -404,7 +404,7 @@ module aq_gemac_gmii_buff(
 	end
 	assign gmii_gtk_clk = tx_clk;
 	assign gmii_txe		= gmii_txe_b;
-	assign gmii_txe		= gmii_txer_b;
+	assign gmii_txer	= gmii_txer_b;
 	assign gmii_txd		= gmii_txd_b;
 	assign bgmii_col	= bgmii_col_b;
 	assign bgmii_crs	= bgmii_crs_b;
