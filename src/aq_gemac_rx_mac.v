@@ -4,7 +4,7 @@
 *
 * Rx MAC
 * File: aq_gemac_rx_mac.v
-* Copyright (C) 2007-2012 H.Ishihara, http://www.aquaxis.com/
+* Copyright (C) 2007-2013 H.Ishihara, http://www.aquaxis.com/
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the
@@ -29,11 +29,11 @@
 *   http://www.aquaxis.com/
 *   info(at)aquaxis.com or hidemi(at)sweetcafe.jp
 *
-* 2007/06/01	H.Ishihara	Create
-* 2007/08/22	H.Ishihara	Modify Full & Empty
-*							Pause receive
-* 2012/05/29	H.Ishihara	change license, GPLv3 -> MIT
-*							STATUS - change bit width 16bit -> 32bit
+* 2007/01/06 H.Ishihara	Create
+* 2007/08/22 H.Ishihara	Modify Full & Empty
+*						Pause receive
+* 2012/05/29 H.Ishihara	change license, GPLv3 -> MIT
+*						STATUS - change bit width 16bit -> 32bit
 */
 module aq_gemac_rx_mac(
 	input		RST_N,			// Reset(Active Low)

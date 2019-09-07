@@ -4,7 +4,7 @@
 *
 * Gigabit MAC
 * File: aq_cemac_l3_ctrl.v
-* Copyright (C) 2007-2012 H.Ishihara, http://www.aquaxis.com/
+* Copyright (C) 2007-2013 H.Ishihara, http://www.aquaxis.com/
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the
@@ -29,9 +29,8 @@
 *   http://www.aquaxis.com/
 *   info(at)aquaxis.com or hidemi(at)sweetcafe.jp
 *
-* 2007/06/01	H.Ishihara	Create
-* 2007/01/01	H.Ishihara	1st release
-* 2011/04/24	H.Ishihara	rename
+* 2007/01/06 H.Ishihara	Create
+* 2011/04/24 H.Ishihara	rename
 */
 module aq_gemac_l3_ctrl(
 	input			RST_N,
@@ -200,7 +199,7 @@ module aq_gemac_l3_ctrl(
 
 	// Status
 	// TCPCheckSumOKReg[4], ICMPCheckSumOKReg[4], IPCheckSumOK, TypeUDP, TypeTCP, TypeICMP, TypeARP, TypeIPv4
-	// 3'd0, TooShort, TooLong,  ErroRST_NatusDrop, ErroRST_NatusCrc, ErroRST_NatusValid
+	// 3'd0, TooShort, TooLong,  ErrorStatusDrop, ErrorStatusCrc, ErrorStatusValid
 
 	assign ExtensionPickup = (RX_BUFF_VALID == 1'b1) & (RX_BUFF_STATUS[2:0] == 3'd0) &
 							 ((RX_BUFF_STATUS[8] == 1'b1 & RX_BUFF_STATUS[10] == 1'b1) |
@@ -331,7 +330,7 @@ module aq_gemac_l3_ctrl(
 						ArpRead		<= 1'b1;
 						ArpLength	<= ArpLength -4;
 					end else begin
-						ArpState <= S_ARP_END;
+						ArpState 	<= S_ARP_END;
 						ArpRead		<= 1'b0;
 					end
 					ArpDataSrcMac[47:16] <= RX_BUFF_DATA;

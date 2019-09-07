@@ -29,14 +29,12 @@
 *   http://www.aquaxis.com/
 *   info(at)aquaxis.com or hidemi(at)sweetcafe.jp
 *
-* 2007/06/01	H.Ishihara	Create
+* 2007/06/01 H.Ishihara	Create
 */
 module aq_gemac_udp_ctrl(
 	input			RST_N,
 	input			CLK,
 
-	input [47:0]	PEER_MAC_ADDRESS,
-	input [31:0]	PEER_IP_ADDRESS,
 	input [47:0]	MY_MAC_ADDRESS,
 	input [31:0]	MY_IP_ADDRESS,
 
@@ -44,8 +42,10 @@ module aq_gemac_udp_ctrl(
 	input			SEND_REQUEST,
 	input [15:0]	SEND_LENGTH,
 	output			SEND_BUSY,
-	input [15:0]	SEND_DSTPORT,
-	input [15:0]	SEND_SRCPORT,
+	input [47:0]	SEND_MAC_ADDRESS,
+	input [31:0]	SEND_IP_ADDRESS,
+	input [15:0]	SEND_DST_PORT,
+	input [15:0]	SEND_SRC_PORT,
 	input			SEND_DATA_VALID,
 	output			SEND_DATA_READ,
 	input [31:0]	SEND_DATA,
@@ -54,11 +54,14 @@ module aq_gemac_udp_ctrl(
 	output			REC_REQUEST,
 	output [15:0]	REC_LENGTH,
 	output			REC_BUSY,
-	input [15:0]	REC_DSTPORT0,
-	input [15:0]	REC_DSTPORT1,
-	input [15:0]	REC_DSTPORT2,
-	input [15:0]	REC_DSTPORT3,
+	input [15:0]	REC_DST_PORT0,
+	input [15:0]	REC_DST_PORT1,
+	input [15:0]	REC_DST_PORT2,
+	input [15:0]	REC_DST_PORT3,
 	output [3:0]	REC_DATA_VALID,
+	output [47:0]	REC_SRC_MAC,
+	output [31:0]	REC_SRC_IP,
+	output [15:0]	REC_SRC_PORT,
 	input			REC_DATA_READ,
 	output [31:0]	REC_DATA,
 
@@ -158,12 +161,12 @@ module aq_gemac_udp_ctrl(
 					TxState		<= S_SEND2;
 					SendWe		<= 1'b1;
 					SendStart	<= 1'b0;
-					SendData	<= PEER_MAC_ADDRESS[31:0];
+					SendData	<= SEND_MAC_ADDRESS[31:0];
 				end
 				S_SEND2: begin  // Send Source MAC Address, Destination MAC Address
 					TxState		<= S_SEND3;
 					SendWe		<= 1'b1;
-					SendData	<= {MY_MAC_ADDRESS[15:0], PEER_MAC_ADDRESS[47:32]};
+					SendData	<= {MY_MAC_ADDRESS[15:0], SEND_MAC_ADDRESS[47:32]};
 				end
 				S_SEND3: begin  // Send Source MAC Address
 					TxState		<= S_SEND4;
@@ -194,19 +197,18 @@ module aq_gemac_udp_ctrl(
 				S_SEND8: begin  // Send Destination IP Address, Source IP Address
 					TxState		<= S_SEND9;
 					SendWe		<= 1'b1;
-					SendData	<= {PEER_IP_ADDRESS[15:0], MY_IP_ADDRESS[31:16]};
+					SendData	<= {SEND_IP_ADDRESS[15:0], MY_IP_ADDRESS[31:16]};
 				end
 				S_SEND9: begin  // Send UDP Header(Source Port), Send Destination IP Address
 					TxState		<= S_SEND10;
 					SendWe		<= 1'b1;
-					SendData	<= {SEND_SRCPORT, PEER_IP_ADDRESS[31:16]};
+					SendData	<= {SEND_SRC_PORT, SEND_IP_ADDRESS[31:16]};
 				end
 				S_SEND10: begin  // Send Length, Destination Port
 					TxState		<= S_SEND11;
 					SendWe		<= 1'b1;
-					SendData	<= {SendLength[7:0], SendLength[15:8], SEND_DSTPORT};
+					SendData	<= {SendLength[7:0], SendLength[15:8], SEND_DST_PORT};
 					SendLength	<= SendLength -16'd8;
-					UdpSendRead	<= 1'b1;
 				end
 				S_SEND11: begin  // Send Data, CheckSum
 					if(SEND_DATA_VALID) begin
@@ -214,8 +216,10 @@ module aq_gemac_udp_ctrl(
 						SendWe		<= 1'b1;
 						SendData	<= {SEND_DATA[15:0], 16'h0000};
 						SendLength	<= SendLength -16'd2;
+						UdpSendRead	<= 1'b1;
 					end else begin
 						SendWe		<= 1'b0;
+						UdpSendRead	<= 1'b0;
 					end
 				end
 				S_SEND12: begin
@@ -229,7 +233,13 @@ module aq_gemac_udp_ctrl(
 							16'd2: SendData	<= {16'd0, UdpSendDelay[31:16]};
 							16'd1: SendData	<= {24'd0, UdpSendDelay[23:16]};
 							endcase
+							if(( SendLength == 16'd4 ) && ( SendLength == 16'd3 )) begin
+								UdpSendRead	<= 1'b1;
+							end else begin
+								UdpSendRead	<= 1'b0;
+							end
 						end else begin
+							UdpSendRead	<= 1'b1;
 							SendLength	<= SendLength -16'd4;
 							SendData	<= {SEND_DATA[15:0], UdpSendDelay[31:16]};
 						end
@@ -238,12 +248,14 @@ module aq_gemac_udp_ctrl(
 						TxState	<= S_END;
 						SendEnd	<= 1'b1;
 						SendWe	<= 1'b1;
+						UdpSendRead	<= 1'b0;
 						case(SendLength)
 							16'd2: SendData	<= {16'd0, UdpSendDelay[31:16]};
 							16'd1: SendData	<= {24'd0, UdpSendDelay[23:16]};
 						endcase
 					end else begin
 						SendWe	<= 1'b0;
+						UdpSendRead	<= 1'b0;
 					end
 				end
 				S_END: begin
@@ -251,7 +263,7 @@ module aq_gemac_udp_ctrl(
 					SendWe		<= 1'b0;
 					SendEnd		<= 1'b0;
 					SendData	<= 32'd00000000;
-					UdpSendRead	<= 1'b1;
+					UdpSendRead	<= 1'b0;
 				end
 			endcase
 			if(SEND_DATA_VALID) begin
@@ -281,9 +293,12 @@ module aq_gemac_udp_ctrl(
 	reg [15:0]	RecLength;
 	reg [31:0]	UdpRecDelay;
 	reg			RxRead;
-//	reg			UdpRecRead;
+	reg [47:0]	RecSrcMac;
+	reg [31:0]	RecSrcIP;
 	reg [15:0]	RecDstPort;
-//	reg [15:0]	RecSrcPort;
+	reg [15:0]	RecSrcPort;
+//	reg			UdpRecRead;
+//	reg [31:0]	UdpRecData;
 
 	// Rx State
 	always @(posedge CLK or negedge RST_N) begin
@@ -291,11 +306,17 @@ module aq_gemac_udp_ctrl(
 			RxState		<= R_IDLE;
 			RecLength	<= 16'd0;
 			RxRead		<= 1'b0;
+			RecSrcMac	<= 48'd0;
+			RecSrcIP	<= 32'd0;
+			RecDstPort	<= 4'd0;
+			RecSrcPort	<= 16'd0;
+			UdpRecDelay <= 32'd0;
 //			UdpRecRead	<= 1'b0;
+//			UdpRecData	<= 32'd0;
 		end else begin
 			case(RxState)
 			R_IDLE: begin
-				if(RX_VALID & RX_STATUS[5])	RxState <= R_GET0;
+				if(RX_VALID & RX_STATUS[12] & RX_STATUS[9] & RX_STATUS[8])	RxState <= R_GET0;
 				RxRead	<= 1'b0;
 			end
 			R_GET0: begin   // Send Destination MAC Address
@@ -303,9 +324,11 @@ module aq_gemac_udp_ctrl(
 			end
 			R_GET1: begin   // Send Source MAC Address, Destination MAC Address
 				RxState	<= R_GET2;
+				RecSrcMac[15:0]	<= RX_DATA[31:16];
 			end
 			R_GET2: begin   // Send Source MAC Address
 				RxState	<= R_GET3;
+				RecSrcMac[47:16]	<= RX_DATA[31:0];
 			end
 			R_GET3: begin   // Send IP Header(Service Type, Header Length, Version), Ethernet Type
 				RxState	<= R_GET4;
@@ -318,34 +341,40 @@ module aq_gemac_udp_ctrl(
 			end
 			R_GET6: begin   // Send Source IP Address, CheckSum
 				RxState	<= R_GET7;
+				RecSrcIP[15:0]	<= RX_DATA[31:16];
 			end
 			R_GET7: begin   // Send Destination IP Address, Source IP Address
 				RxState	<= R_GET8;
+				RecSrcIP[31:16]	<= RX_DATA[15:0];
 			end
 			R_GET8: begin   // Send UDP Header(Source Port), Send Destination IP Address
 				RxState	<= R_GET9;
-//				RecSrcPort <= RX_DATA[31:16];
+				RecSrcPort	<= RX_DATA[31:16];
 			end
 			R_GET9: begin   // Send Length, Destination Port
 				RxState		<= R_GET10;
 				RecDstPort	<= RX_DATA[15:0];
-				RecLength	<= {RX_DATA[24:16], RX_DATA[31:24]} - 16'd8;
+				RecLength	<= {RX_DATA[23:16], RX_DATA[31:24]} - 16'd8;
 			end
 			R_GET10: begin  // Send Data, CheckSum
 				RxState   <= R_GET_DATA;
 			end
 			R_GET_DATA: begin
 				if(REC_DATA_READ) begin
-					if(RecLength <= 16'd8) begin
+					if(RecLength <= 16'd4) begin
 						RxState	 <= R_FINAL;
 					end
 					RecLength   <= RecLength -16'd4;
 //					UdpRecRead <= 1'b1;
+//					UdpRecData <= {RX_DATA[15:0], UdpRecDelay[31:16]};
 				end else begin
 //					UdpRecRead <= 1'b0;
+//					UdpRecData <= 32'd0;
 				end
 			end
 			R_FINAL: begin
+//				UdpRecRead <= 1'b0;
+//				UdpRecData <= 32'd0;
 				RxState <= R_IDLE;
 			end
 			default: begin
@@ -358,16 +387,20 @@ module aq_gemac_udp_ctrl(
 		end
 	end
 
-	assign REC_DATA_VALID[0]	= ((RxState == R_GET_DATA) && (RecDstPort == REC_DSTPORT0))?1'b1:1'b0;
-	assign REC_DATA_VALID[1]	= ((RxState == R_GET_DATA) && (RecDstPort == REC_DSTPORT1))?1'b1:1'b0;
-	assign REC_DATA_VALID[2]	= ((RxState == R_GET_DATA) && (RecDstPort == REC_DSTPORT2))?1'b1:1'b0;
-	assign REC_DATA_VALID[3]	= ((RxState == R_GET_DATA) && (RecDstPort == REC_DSTPORT3))?1'b1:1'b0;
+	assign REC_DATA_VALID[0]	= ((RxState == R_GET_DATA) && (RecDstPort == REC_DST_PORT0))?1'b1:1'b0;
+	assign REC_DATA_VALID[1]	= ((RxState == R_GET_DATA) && (RecDstPort == REC_DST_PORT1))?1'b1:1'b0;
+	assign REC_DATA_VALID[2]	= ((RxState == R_GET_DATA) && (RecDstPort == REC_DST_PORT2))?1'b1:1'b0;
+	assign REC_DATA_VALID[3]	= ((RxState == R_GET_DATA) && (RecDstPort == REC_DST_PORT3))?1'b1:1'b0;
+	assign REC_SRC_MAC			= RecSrcMac[47:0];
+	assign REC_SRC_IP			= RecSrcIP[31:0];
+	assign REC_SRC_PORT			= RecSrcPort[15:0];
 	assign REC_BUSY				= (RxState != R_IDLE)?1'b1:1'b0;
 	assign REC_REQUEST			= (RxState == R_GET10)?1'b1:1'b0;
 	assign REC_LENGTH			= RecLength;
 	assign REC_DATA				= {RX_DATA[15:0], UdpRecDelay[31:16]};
 
-	assign SEND_DATA_READ	= (UdpSendRead)?1'b1:1'b0;
+//	assign SEND_DATA_READ	= (UdpSendRead)?1'b1:1'b0;
+	assign SEND_DATA_READ	= (SEND_DATA_VALID & ((TxState == S_SEND11) | (((TxState == S_SEND12) & (SendLength > 16'd2)) )))?1'b1:1'b0;
 	assign SEND_BUSY		= (TxState != S_IDLE);
 
 	assign TX_WE		= ETX_WE | SendWe;
@@ -385,8 +418,8 @@ module aq_gemac_udp_ctrl(
 					(RxState == R_GET6) || (RxState == R_GET7) ||
 					(RxState == R_GET8) || (RxState == R_GET9) ||
 					(RxState == R_GET10) ||
-					((RxState == R_GET_DATA) && (REC_DATA_READ)) ||
-					(RxState == R_FINAL)
+					((RxState == R_GET_DATA) && (REC_DATA_READ))
+//					(RxState == R_FINAL)
 					)?1'b1:ERX_RE;
 	assign ERX_EMPTY	= (RxState == R_IDLE)?RX_EMPTY:1'b1;
 	assign ERX_VALID	= (RxState == R_IDLE)?RX_VALID:1'b0;
@@ -395,4 +428,3 @@ module aq_gemac_udp_ctrl(
 	assign ERX_STATUS	= RX_STATUS;
 
 endmodule
-

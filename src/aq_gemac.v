@@ -29,8 +29,8 @@
 *   http://www.aquaxis.com/
 *   info(at)aquaxis.com or hidemi(at)sweetcafe.jp
 *
-* 2007/06/01	H.Ishihara	Create
-* 2011/04/24	rename
+* 2007/01/06 H.Ishihara	Create
+* 2011/04/24 rename
 */
 module aq_gemac(
 	// System Reset

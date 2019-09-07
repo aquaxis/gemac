@@ -29,9 +29,9 @@
 *   http://www.aquaxis.com/
 *   info(at)aquaxis.com or hidemi(at)sweetcafe.jp
 *
-* 2007/06/01	H.Ishihara	Create
-* 2011/04/24	H.Ishihara	rename
-* 2012/05/29	H.Ishihara	change license, GPLv3 -> MIT
+* 2007/01/06 H.Ishihara	Create
+* 2011/04/24 H.Ishihara	rename
+* 2012/05/29 H.Ishihara	change license, GPLv3 -> MIT
 */
 module aq_gemac_rx_crc(
 	input		RST_N,

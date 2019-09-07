@@ -29,7 +29,7 @@
 *   http://www.aquaxis.com/
 *   info(at)aquaxis.com or hidemi(at)sweetcafe.jp
 *
-* Create 2007/06/01 H.Ishihara
+* 2007/01/06 H.Ishihara	Create
 */
 module aq_gemac_tx_mac(
 	input			RST_N,
@@ -39,7 +39,7 @@ module aq_gemac_tx_mac(
 	output [7:0]	TX_D,
 	output			TX_EN,
 	output			TX_ER,
-	output			TX_CRS,
+	input				TX_CRS,
 
 	//
 	input			TX_REQ,

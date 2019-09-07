@@ -29,7 +29,7 @@
 *   http://www.aquaxis.com/
 *   info(at)aquaxis.com or hidemi(at)sweetcafe.jp
 *
-* Create 2007/06/01 H.Ishihara
+* 2007/01/06 H.Ishihara	Create
 */
 module aq_gemac_tx_buff(
 	input			RST_N,
@@ -344,7 +344,9 @@ module aq_gemac_tx_buff(
 	end
 
 	always @(posedge MAC_CLK) begin
-		ReadData <= {MemoryE[ReadAddress], MemoryH[ReadAddress], MemoryL[ReadAddress]};
+		ReadData[32] <= MemoryE[ReadAddress];
+		ReadData[31:16] <= MemoryH[ReadAddress];
+		ReadData[15:0]  <= MemoryL[ReadAddress];
 	end
 
 	always @(posedge MAC_CLK or negedge RST_N) begin

@@ -1,44 +1,72 @@
+/*
+* PROJECT: AQUAXIS Giga Ethernet MAC
+* ----------------------------------------------------------------------
+*
+* ARP/ICMP echo with Gigabit MAC
+* File: aq_gemac_echo.v
+* Copyright (C) 2007-2013 H.Ishihara, http://www.aquaxis.com/
+*
+* Permission is hereby granted, free of charge, to any person obtaining
+* a copy of this software and associated documentation files (the
+* "Software"), to deal in the Software without restriction, including
+* without limitation the rights to use, copy, modify, merge, publish,
+* distribute, sublicense, and/or sell copies of the Software, and to
+* permit persons to whom the Software is furnished to do so, subject to
+* the following conditions:
+*
+* The above copyright notice and this permission notice shall be
+* included in all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+* NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+* LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+* OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+* WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+* For further information please contact.
+*   http://www.aquaxis.com/
+*   info(at)aquaxis.com or hidemi(at)sweetcafe.jp
+*
+* 2012/05/28 H.Ishihara	Create
+*/
 `timescale 1ps / 1ps
 
-module arty(
+module aq_gemac_echo
+#(
+	parameter USE_MIIM	= 1
+)
+(
 	input			RST_N,
 
-	input			CLK100MHZ,
+	input			CLK100M,
 
-	output          EMAC_REF_CLK,
-
+	input			EMAC_CLK125M,	// Clock 125MHz
+	output			EMAC_GTX_CLK,	// Tx Clock(Out) for 1000 Mode
 	input			EMAC_TX_CLK,	// Tx Clock(In)  for 10/100 Mode
-	output [3:0]	EMAC_TXD,		// Tx Data
+	output [7:0]	EMAC_TXD,		// Tx Data
 	output			EMAC_TX_EN,		// Tx Data Enable
-//	output			EMAC_TX_ER,		// Tx Error
+	output			EMAC_TX_ER,		// Tx Error
 	input			EMAC_COL,		// Collision signal
 	input			EMAC_CRS,		// CRS
 
 	input			EMAC_RX_CLK,	// Rx Clock(In)  for 10/100/1000 Mode
-	input [3:0]		EMAC_RXD,		// Rx Data
+	input [7:0]		EMAC_RXD,		// Rx Data
 	input			EMAC_RX_DV,		// Rx Data Valid
 	input			EMAC_RX_ER,		// Rx Error
 
 	input			EMAC_INT,		// Interrupt
-	output			EMAC_RST_N,		// Reset
+	output			EMAC_RST,		// Reset
 
 	output			MIIM_MDC,		// MIIM Clock
 	inout			MIIM_MDIO		// MIIM I/O
 );
 	parameter DEFAULT_MY_MAC_ADRS	= 48'h332211000000;
-	parameter DEFAULT_MY_IP_ADRS	= 32'h9601A8C0;	  // 192.168.13.150
-	parameter DEFAULT_PEER_IP_ADRS	= 32'h9701A8C0;	  // 192.168.13.151
+	parameter DEFAULT_MY_IP_ADRS	= 32'h9601A8C0;	  // 192.168.1.150
+	parameter DEFAULT_PEER_IP_ADRS	= 32'h0A01A8C0;	  // 192.168.1.151
 
-	PULLUP u_RST_N(.O(RST_N));
-
-	reg CLK50MHZ, CLK25MHZ;
-	always @(posedge CLK100MHZ) begin
-		CLK50MHZ <= ~CLK50MHZ;
-	end
-	always @(posedge CLK50MHZ) begin
-		CLK25MHZ <= ~CLK25MHZ;
-	end
-	assign EMAC_REF_CLK = CLK25MHZ;
+//	PULLUP u_RST_N(.O(RST_N));
 
 //	IDELAYCTRL u_IDELAYCTRL(.RDY(), .REFCLK(CLK200M), .RST(~RST_N));
 
@@ -67,15 +95,6 @@ module arty(
 
 	wire [47:0] peer_mac_address;
 
-	wire EMAC_CLK125M, EMAC_GTX_CLK;
-	assign EMAC_CLK125M = 1'b0;
-	assign EMAC_GTX_CLK = 1'b0;
-
-	wire EMAC_RST;
-	assign EMAC_RST_N = ~EMAC_RST;
-
-	wire EMAC_TX_ER;
-
 		// RX Buffer Interface
 	wire			RX_BUFF_RE;			// RX Buffer Read Enable
 	wire [31:0]	RX_BUFF_DATA;		// RX Buffer Data
@@ -93,10 +112,13 @@ module arty(
 	wire			TX_BUFF_FULL;		// TX Buffer Full
 	wire [9:0]	TX_BUFF_SPACE;		// TX Buffer Space
 
-
-	aq_gemac_ipctrl u_aq_gemac_ipctrl(
+	aq_gemac_ip_top
+		#(
+		.USE_MIIM			( USE_MIIM		)
+	)
+    u_aq_gemac_ip_top(
 		.RST_N				( RST_N			),
-		.SYS_CLK			( CLK100MHZ		),
+		.SYS_CLK			( CLK100M		),
 
 		// GEMAC Interface
 		.EMAC_CLK125M		(EMAC_CLK125M),		// Clock 125MHz
@@ -114,7 +136,6 @@ module arty(
 		.EMAC_RX_DV			(EMAC_RX_DV),			// Rx Data Valid
 		.EMAC_RX_ER			(EMAC_RX_ER),			// Rx Error
 
-		.EMAC_INT			(EMAC_INT),			// Interrupt
 		.EMAC_RST			(EMAC_RST),
 
 		// GEMAC MIIM Interface
@@ -155,14 +176,10 @@ module arty(
 		.PEER_IP_ADDRESS	( DEFAULT_PEER_IP_ADRS	),
 		.MY_MAC_ADDRESS		( DEFAULT_MY_MAC_ADRS	),
 		.MY_IP_ADDRESS		( DEFAULT_MY_IP_ADRS	),
-		.PORT0				( 16'd1234				),
-		.PORT1				( 16'd1236				),
-		.PORT2				( 16'd1238				),
-		.PORT3				( 16'd1240				),
 
-		.ARPC_ENABLE		(arpc_enable),		// ARP Cache Request Enable
-		.ARPC_REQUEST		(arpc_request),		// ARP Cache Request
-		.ARPC_VALID			(arpc_valid),			// ARP Cache Valid
+		.ARPC_ENABLE		(arp_enable),		// ARP Cache Request Enable
+		.ARPC_REQUEST		(arp_request),		// ARP Cache Request
+		.ARPC_VALID			(arp_valid),			// ARP Cache Valid
 
 		.MAX_RETRY			( 4'd4					),			// Max Retry
 		.GIG_MODE			( 1'b0					),			// Operation Mode(1: Giga Mode, 0: 10/100Mbps)
@@ -172,8 +189,10 @@ module arty(
 		.SEND_REQUEST		(1'd0),
 		.SEND_LENGTH		(16'd0),
 		.SEND_BUSY			(),
-		.SEND_DSTPORT		(16'd0),
-		.SEND_SRCPORT		(16'd0),
+        .SEND_MAC_ADDRESS   (48'd0),
+        .SEND_IP_ADDRESS    (32'd0),
+		.SEND_DST_PORT		(16'd0),
+		.SEND_SRC_PORT		(16'd0),
 		.SEND_DATA_VALID	(1'd0),
 		.SEND_DATA_READ		(),
 		.SEND_DATA			(32'd0),
@@ -182,13 +201,20 @@ module arty(
 		.REC_REQUEST		(),
 		.REC_LENGTH			(),
 		.REC_BUSY			(),
+		.REC_DST_PORT0		( 16'd1234				),
+		.REC_DST_PORT1		( 16'd1236				),
+		.REC_DST_PORT2		( 16'd1238				),
+		.REC_DST_PORT3		( 16'd1240				),
+        .REC_SRC_MAC        (),
+        .REC_SRC_IP         (),
+        .REC_SRC_PORT       (),
 		.REC_DATA_VALID		(),
 		.REC_DATA_READ		(1'd0),
 		.REC_DATA			()
 	);
 
 	reg [1:0] arp_state;
-	always @(posedge CLK100MHZ or negedge RST_N) begin
+	always @(posedge CLK100M or negedge RST_N) begin
 		if(!RST_N) begin
 			arp_state <= 2'd0;
 		end else begin
@@ -220,9 +246,9 @@ module arty(
 	assign max_retry			= 4'd8;
 	assign random_time_meet	 = 1'b1;
 
-	ether_udp_loop u_ether_udp_loop(
+	aq_gemac_udp_loop u_aq_gemac_udp_loop(
 		.RST(RST_N),
-		.CLK(CLK100MHZ),
+		.CLK(CLK100M),
 
 		.UDP_PEER_MAC_ADDRESS(peer_mac_address),
 		.UDP_PEER_IP_ADDRESS(DEFAULT_PEER_IP_ADRS),
@@ -287,5 +313,4 @@ module arty(
 		end
 	end
 */
-
 endmodule

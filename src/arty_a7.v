@@ -1,6 +1,6 @@
 `timescale 1ps / 1ps
 
-module arty(
+module arty_a7(
 	input			RST_N,
 
 	input			CLK100MHZ,
@@ -172,8 +172,10 @@ module arty(
 		.SEND_REQUEST		(1'd0),
 		.SEND_LENGTH		(16'd0),
 		.SEND_BUSY			(),
-		.SEND_DSTPORT		(16'd0),
-		.SEND_SRCPORT		(16'd0),
+		.SEND_MAC_ADDRESS	(48'd0),
+		.SEND_IP_ADDRESS	(32'd0),
+		.SEND_DST_PORT		(16'd0),
+		.SEND_SRC_PORT		(16'd0),
 		.SEND_DATA_VALID	(1'd0),
 		.SEND_DATA_READ		(),
 		.SEND_DATA			(32'd0),
@@ -183,7 +185,10 @@ module arty(
 		.REC_LENGTH			(),
 		.REC_BUSY			(),
 		.REC_DATA_VALID		(),
-		.REC_DATA_READ		(1'd0),
+		.REC_SRC_MAC		(),
+		.REC_SRC_IP			(),
+		.REC_SRC_PORT		(),
+		.REC_DATA_READ		(1'd1),
 		.REC_DATA			()
 	);
 
@@ -220,7 +225,7 @@ module arty(
 	assign max_retry			= 4'd8;
 	assign random_time_meet	 = 1'b1;
 
-	ether_udp_loop u_ether_udp_loop(
+	aq_gemac_udp_loop u_aq_gemac_udp_loop(
 		.RST(RST_N),
 		.CLK(CLK100MHZ),
 
@@ -249,6 +254,24 @@ module arty(
 
 		.STATUS()
 	);
+/*
+ila_0 u_ila_0(
+	.clk(CLK100MHZ),
+	.probe0(RX_BUFF_RE),
+	.probe1(RX_BUFF_DATA),
+	.probe2(RX_BUFF_EMPTY),
+	.probe3(RX_BUFF_VALID),
+	.probe4(RX_BUFF_LENGTH),
+	.probe5(RX_BUFF_STATUS),
+	.probe6(TX_BUFF_WE),
+	.probe7(TX_BUFF_START),
+	.probe8(TX_BUFF_END),
+	.probe9(TX_BUFF_READY),
+	.probe10(TX_BUFF_DATA),
+	.probe11(TX_BUFF_FULL),
+	.probe12(TX_BUFF_SPACE)
+);
+*/
 
 	// LED
 

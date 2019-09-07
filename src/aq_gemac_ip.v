@@ -2,8 +2,8 @@
 * PROJECT: AQUAXIS Giga Ethernet MAC
 * ----------------------------------------------------------------------
 *
-* UDP with Gigabit MAC
-* File: aq_gemac_udp.v
+* IP Controller with Gigabit MAC
+* File: aq_gemac_ip.v
 * Copyright (C) 2007-2013 H.Ishihara, http://www.aquaxis.com/
 *
 * Permission is hereby granted, free of charge, to any person obtaining
@@ -29,37 +29,61 @@
 *   http://www.aquaxis.com/
 *   info(at)aquaxis.com or hidemi(at)sweetcafe.jp
 *
-* 2007/06/01 H.Ishihara	Create
+* 2012/05/28 H.Ishihara	Create
 * 2013/02/15 H.Ishiahra	Modify for signal name
 */
 `timescale 1ps / 1ps
 
-module aq_gemac_udp(
+module aq_gemac_ip
+#(
+	parameter USE_MIIM	= 1
+)
+(
 	input			RST_N,
 	input			SYS_CLK,
 
 	// GEMAC Interface
-	input			EMAC_CLK125M,		// Clock 125MHz
-	output			EMAC_GTX_CLK,		// Tx Clock(Out) for 1000 Mode
-
-	input			EMAC_TX_CLK,		// Tx Clock(In)  for 10/100 Mode
-	output [7:0]	EMAC_TXD,			// Tx Data
-	output			EMAC_TX_EN,			// Tx Data Enable
-	output			EMAC_TX_ER,			// Tx Error
-	input			EMAC_COL,			// Collision signal
-	input			EMAC_CRS,			// CRS
-
-	input			EMAC_RX_CLK,		// Rx Clock(In)  for 10/100/1000 Mode
-	input [7:0]		EMAC_RXD,			// Rx Data
-	input			EMAC_RX_DV,			// Rx Data Valid
-	input			EMAC_RX_ER,			// Rx Error
-
-	input			EMAC_INT,			// Interrupt
-	output			EMAC_RST,
+	input			EMAC_TX_CLK,
+	output [7:0]	EMAC_TXD,
+	output			EMAC_TX_EN,
+	output			EMAC_TX_ER,
+	input			EMAC_RX_CLK,
+	input [7:0]		EMAC_RXD,
+	input			EMAC_RX_DV,
+	input			EMAC_RX_ER,
+	input			EMAC_COL,
+	input			EMAC_CRS,
 
 	// GEMAC MIIM Interface
-	input			MIIM_MDC,			// MIIM Clock
-	inout			MIIM_MDIO,			// MIIM I/O
+	input			MIIM_MDIO_CLK,
+	input			MIIM_MDIO_DI,
+	output			MIIM_MDIO_DO,
+	output			MIIM_MDIO_T,
+
+	input			MIIM_REQUEST,
+	input			MIIM_WRITE,
+	input [4:0]		MIIM_PHY_ADDRESS,
+	input [4:0]		MIIM_REG_ADDRESS,
+	input [15:0]	MIIM_WDATA,
+	output [15:0]	MIIM_RDATA,
+	output			MIIM_BUSY,
+
+	// RX Buffer Interface
+	input			RX_BUFF_RE,			// RX Buffer Read Enable
+	output [31:0]	RX_BUFF_DATA,		// RX Buffer Data
+	output			RX_BUFF_EMPTY,		// RX Buffer Empty(1: Empty, 0: No Empty)
+	output			RX_BUFF_VALID,		// RX Buffer Valid
+	output [15:0]	RX_BUFF_LENGTH,		// RX Buffer Length
+	output [15:0]	RX_BUFF_STATUS,		// RX Buffer Status
+
+	// TX Buffer Interface
+	input			TX_BUFF_WE,			// TX Buffer Write Enable
+	input			TX_BUFF_START,		// TX Buffer Data Start
+	input			TX_BUFF_END,		// TX Buffer Data End
+	output			TX_BUFF_READY,		// TX Buffer Ready
+	input [31:0]	TX_BUFF_DATA,		// TX Buffer Data
+	output			TX_BUFF_FULL,		// TX Buffer Full
+	output [9:0]	TX_BUFF_SPACE,		// TX Buffer Space
 
 	// From CPU
 	input [15:0]	PAUSE_QUANTA_DATA,	// Pause Quanta value
@@ -70,6 +94,10 @@ module aq_gemac_udp(
 	input [31:0]	PEER_IP_ADDRESS,
 	input [47:0]	MY_MAC_ADDRESS,
 	input [31:0]	MY_IP_ADDRESS,
+
+	output			ARPC_ENABLE,		// ARP Cache Request Enable
+	input			ARPC_REQUEST,		// ARP Cache Request
+	output			ARPC_VALID,			// ARP Cache Valid
 
 	input [3:0]		MAX_RETRY,			// Max Retry
 	input			GIG_MODE,			// Operation Mode(1: Giga Mode, 0: 10/100Mbps)
@@ -103,18 +131,6 @@ module aq_gemac_udp(
 	output [31:0]	REC_DATA
 );
 
-	wire		internal_clk;
-	assign internal_clk = EMAC_CLK125M;
-
-	wire [7:0]	gEMAC_TXD;
-	wire		gEMAC_TX_EN;
-	wire		gEMAC_TX_ER;
-	wire		gEMAC_COL;
-	wire		gEMAC_CRS;
-	wire [7:0]	gEMAC_RXD;
-	wire		gEMAC_RX_DV;
-	wire		gEMAC_RX_ER;
-
 	wire		tx_buff_we, tx_buff_start, tx_buff_end, tx_buff_ready, tx_buff_full;
 	wire [31:0]	tx_buff_data;
 	wire [9:0]	tx_buff_space;
@@ -139,70 +155,13 @@ module aq_gemac_udp(
 	wire		giga_mode;
 	wire		full_duplex;
 
-	wire		arpc_enable, arpc_request, arpc_valid;
-
 	wire [15:0]	l3_ext_status;
-	wire [47:0]	peer_mac_address_o;
 	wire		tx_clk, rx_clk;
-
-	// Ethernet MAC
-	assign EMAC_RST	= 1'b1;
-	assign tx_clk	= (giga_mode)?EMAC_CLK125M:EMAC_TX_CLK;
-	assign rx_clk	= EMAC_RX_CLK;
-
-	// I/O
-`ifdef RGMII
-	aq_gemac_gmii2rgmii u_aq_gemac_gmii2rgmii(
-		.rst_b		( rst_b			),
-
-		.tx_clk		( tx_clk		),
-		.gmii_txd	( gEMAC_TXD		),
-		.gmii_txe	( gEMAC_TX_EN	),
-		.gmii_txer	( gEMAC_TX_ER	),
-		.gmii_rxd	( gEMAC_RXD		),
-		.gmii_rxe	( gEMAC_RX_DV	),
-		.gmii_rxer	( gEMAC_RX_ER	),
-
-		.rx_clk		( rx_clk		),
-		.rgmii_txd	( EMAC_TXD[3:0]	),
-		.rgmii_txe	( EMAC_TX_ER	),
-		.rgmii_rxd	( EMAC_RXD[3:0]	),
-		.rgmii_rxe	( EMAC_RX_ER	),
-		.rgmii_tck	( EMAC_GTX_CLK	)
-	);
-	assign gEMAC_COL <= 1'b0;
-	assign gEMAC_CRS <= 1'b0;
-`else
-	aq_gemac_gmii_buff u_aq_gemac_gmii_buff(
-		.rst_b			( RST_N			),
-
-		.tx_clk			( tx_clk		),
-		.bgmii_txd		( gEMAC_TXD		),
-		.bgmii_txe		( gEMAC_TX_EN	),
-		.bgmii_txer		( gEMAC_TX_ER	),
-		.bgmii_rxd		( gEMAC_RXD		),
-		.bgmii_rxe		( gEMAC_RX_DV	),
-		.bgmii_rxer		( gEMAC_RX_ER	),
-		.bgmii_cos		( gEMAC_COL		),
-		.bgmii_crs		( gEMAC_CRS		),
-
-		.rx_clk			( rx_clk		),
-		.gmii_txd		( EMAC_TXD		),
-		.gmii_txe		( EMAC_TX_EN	),
-		.gmii_txer		( EMAC_TX_ER	),
-		.gmii_rxd		( EMAC_RXD		),
-		.gmii_rxe		( EMAC_RX_DV	),
-		.gmii_rxer		( EMAC_RX_ER	),
-		.gmii_col		( EMAC_COS		),
-		.gmii_crs		( EMAC_CRS		),
-		.gmii_gtk_clk	( EMAC_GTX_CLK  )
-	);
-`endif
 
 	// UDP Controller
 	aq_gemac_udp_ctrl u_aq_gemac_udp_ctrl(
 		.RST_N				( RST_N					),
-		.CLK				( internal_clk			),
+		.CLK				( SYS_CLK				),
 
 		.MY_MAC_ADDRESS		( MY_MAC_ADDRESS		),
 		.MY_IP_ADDRESS		( MY_IP_ADDRESS			),
@@ -211,8 +170,8 @@ module aq_gemac_udp(
 		.SEND_REQUEST		( SEND_REQUEST			),
 		.SEND_LENGTH		( SEND_LENGTH			),
 		.SEND_BUSY			( SEND_BUSY				),
-		.SEND_MAC_ADDRESS   ( peer_mac_address_o	),
-		.SEND_IP_ADDRESS	( PEER_IP_ADDRESS		),
+		.SEND_MAC_ADDRESS   ( SEND_MAC_ADDRESS		),
+		.SEND_IP_ADDRESS	( SEND_IP_ADDRESS		),
 		.SEND_DST_PORT		( SEND_DST_PORT			),
 		.SEND_SRC_PORT		( SEND_SRC_PORT			),
 		.SEND_DATA_VALID	( SEND_DATA_VALID		),
@@ -250,26 +209,26 @@ module aq_gemac_udp(
 		.RX_LENGTH			( erx_buff_length		),
 		.RX_STATUS			( erx_buff_status		),
 
-		.ETX_WE				( 1'b0					),
-		.ETX_START			( 1'b0					),
-		.ETX_END			( 1'b0					),
-		.ETX_READY			(),
-		.ETX_DATA			( 32'd0					),
-		.ETX_FULL			(),
-		.ETX_SPACE			(),
+		.ETX_WE				( TX_BUFF_WE			),
+		.ETX_START			( TX_BUFF_START			),
+		.ETX_END			( TX_BUFF_END			),
+		.ETX_READY			( TX_BUFF_READY			),
+		.ETX_DATA			( TX_BUFF_DATA			),
+		.ETX_FULL			( TX_BUFF_FULL			),
+		.ETX_SPACE			( TX_BUFF_SPACE			),
 
-		.ERX_RE				( 1'b0					),
-		.ERX_DATA			(),
-		.ERX_EMPTY			(),
-		.ERX_VALID			(),
-		.ERX_LENGTH			(),
-		.ERX_STATUS			()
+		.ERX_RE				( RX_BUFF_RE			),
+		.ERX_DATA			( RX_BUFF_DATA			),
+		.ERX_EMPTY			( RX_BUFF_EMPTY			),
+		.ERX_VALID			( RX_BUFF_VALID			),
+		.ERX_LENGTH			( RX_BUFF_LENGTH		),
+		.ERX_STATUS			( RX_BUFF_STATUS		)
 	);
 
 	// Layer 3 Controller
 	aq_gemac_l3_ctrl u_aq_gemac_l3_ctrl(
 		.RST_N				( RST_N					),
-		.CLK				( internal_clk			),
+		.CLK				( SYS_CLK				),
 
 		// RX Buffer Interface
 		.RX_BUFF_RE			( rx_buff_re			),
@@ -308,34 +267,33 @@ module aq_gemac_udp(
 		.MAC_ADDRESS		( MY_MAC_ADDRESS		),
 		.IP_ADDRESS			( MY_IP_ADDRESS			),
 
-		.ARPC_ENABLE		( arpc_enable			),
-		.ARPC_REQUEST		( arpc_request			),
-		.ARPC_VALID			( arpc_valid			),
+		.ARPC_ENABLE		( ARPC_ENABLE			),
+		.ARPC_REQUEST		( ARPC_REQUEST			),
+		.ARPC_VALID			( ARPC_VALID			),
 		.ARPC_IP_ADDRESS	( PEER_IP_ADDRESS		),
-		.ARPC_MAC_ADDRESS   ( peer_mac_address_o	),
+		.ARPC_MAC_ADDRESS   ( PEER_MAC_ADDRESS		),
 
 		.STATUS				( l3_ext_status			)
 	);
-	assign PEER_MAC_ADDRESS = peer_mac_address_o;
 
 	// Giga Ethernet MAC
 	aq_gemac u_aq_gemac(
 		.RST_N				( RST_N				),
 
 		// GMII,MII Interface
-		.TX_CLK				( tx_clk			),
-		.TXD				( gEMAC_TXD			),
-		.TX_EN				( gEMAC_TX_EN		),
-		.TX_ER				( gEMAC_TX_ER		),
-		.RX_CLK				( rx_clk			),
-		.RXD				( gEMAC_RXD			),
-		.RX_DV				( gEMAC_RX_DV		),
-		.RX_ER				( gEMAC_RX_ER		),
-		.COL				( gEMAC_COL			),
-		.CRS				( gEMAC_CRS			),
+		.TX_CLK				( EMAC_TX_CLK		),
+		.TXD				( EMAC_TXD			),
+		.TX_EN				( EMAC_TX_EN		),
+		.TX_ER				( EMAC_TX_ER		),
+		.RX_CLK				( EMAC_RX_CLK		),
+		.RXD				( EMAC_RXD			),
+		.RX_DV				( EMAC_RX_DV		),
+		.RX_ER				( EMAC_RX_ER		),
+		.COL				( EMAC_COL			),
+		.CRS				( EMAC_CRS			),
 
 		// System Clock
-		.CLK				( internal_clk		),
+		.CLK				( SYS_CLK			),
 
 		// RX Buffer Interface
 		.RX_BUFF_RE			( rx_buff_re		),
@@ -372,36 +330,29 @@ module aq_gemac_udp(
 		.FULL_DUPLEX		( FULL_DUPLEX		)
 	);
 
-	// ARP Detect
-	reg [1:0] arp_state;
-	always @(posedge internal_clk or negedge RST_N) begin
-		if(!RST_N) begin
-			arp_state <= 2'd0;
-		end else begin
-			case(arp_state[1:0])
-				2'd0: begin
-					if((arpc_enable == 1'b0) && (arpc_valid == 1'b0)) begin
-						arp_state <= 2'd1;
-					end
-				end
-				2'd1: begin
-					arp_state <= 2'd2;
-				end
-				2'd2: begin
-					if(arpc_enable == 1'b0) begin
-						if(arpc_valid == 1'b0) begin
-							arp_state <= 2'd0;
-						end else begin
-							arp_state <= 2'd3;
-						end
-					end
-				end
-				2'd3: begin
-				end
-			endcase
-		end
-	end
+	// MIIM Controller
+`ifdef USE_MIIM
+	aq_gemac_miim u_aq_gemac_miim(
+		.RST_N				( RST_N				),
+		.CLK				( SYS_CLK			),
 
-	assign arpc_request = arp_state == 2'd1;
+		.MIIM_REQUEST		( MIIM_REQUEST		),
+		.MIIM_WRITE			( MIIM_WRITE		),
+		.MIIM_PHY_ADDRESS	( MIIM_PHY_ADDRESS	),
+		.MIIM_REG_ADDRESS	( MIIM_REG_ADDRESS	),
+		.MIIM_WDATA			( MIIM_WDATA		),
+		.MIIM_RDATA			( MIIM_RDATA		),
+		.MIIM_BUSY			( MIIM_BUSY			),
+
+		.MDC				( MIIM_MDIO_CLK		),
+		.MDIO_IN			( MIIM_MDIO_DI		),
+		.MDIO_OUT			( MIIM_MDIO_DO		),
+		.MDIO_OUT_ENABLE	( MIIM_MDIO_T		)
+	);
+`else
+	assign MIIM_BUSY		= 1'b0;
+	assign MIIM_RDATA[15:0]	= 15'd0;
+	assign MIIM_MDIO_DO		= 1'b0;
+	assign MIIM_MDIO_T		= 1'b0;
+`endif
 endmodule
-

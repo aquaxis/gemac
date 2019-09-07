@@ -29,7 +29,7 @@
 *   http://www.aquaxis.com/
 *   info(at)aquaxis.com or hidemi(at)sweetcafe.jp
 *
-* 2007/06/01	H.Ishihara	Create
+* 2007/01/06 H.Ishihara	Create
 */
 module aq_gemac_tx_crc(
 	input			RST_N,

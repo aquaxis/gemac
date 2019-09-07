@@ -4,7 +4,7 @@
 *
 * IP/TCP/UDP/ARP/ICMP Offload Engine
 * File: aq_gemac_rx_decode.v
-* Copyright (C) 2007-2012 H.Ishihara, http://www.aquaxis.com/
+* Copyright (C) 2007-2013 H.Ishihara, http://www.aquaxis.com/
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the
@@ -29,22 +29,27 @@
 *   http://www.aquaxis.com/
 *   info(at)aquaxis.com or hidemi(at)sweetcafe.jp
 *
-* 2007/06/01	H.Ishihara	Create
-* 2012/05/29	H.Ishihara	change license, GPLv3 -> MIT
-*							STATUS - change bit width 16bit -> 32bit
+* 2007/01/06 H.Ishihara	Create
+* 2012/05/29 H.Ishihara	change license, GPLv3 -> MIT
+*						STATUS - change bit width 16bit -> 32bit
+* 2013/02/18 H.Ishihara	STATUS - change bit width 32bit -> 16bit
 *
 * Status
-*  [31:24]	Port7-0
-*  [12]		MyIPAddress
-*  [11]		MyMacAddress
-*  [10]		TCPCheckSumOk
-*  [9]		ICMPCheckSumOk
-*  [8]		IPCheckSumOk
-*  [5]		UDP
-*  [4]		TCP
-*  [3]		ICMP
-*  [2]		ARP
-*  [1]		IPv6
+*  [15]		Port3
+*  [14]		Port2
+*  [13]		Port1
+*  [12]		Port0
+*  [11]		Reserved
+*  [10]		Reserved
+*  [9]		MyIPAddress
+*  [8]		MyMacAddress
+*  [7]		TCPCheckSumOk
+*  [6]		ICMPCheckSumOk
+*  [5]		IPCheckSumOk
+*  [4]		UDP
+*  [3]		TCP
+*  [2]		ICMP
+*  [1]		ARP
 *  [0]		IPv4
 *
 */
@@ -183,7 +188,7 @@ module aq_gemac_rx_decode(
 							end
 						end
 						// PORT
-						13'd35: begin
+						13'd37: begin
 							if(TypeTCP | TypeUDP) begin
 								if((BuffDelay[7:0] == PORT0[15:8]) && (BUFF_DATA[7:0] == PORT0[7:0]))	Port[0] <= 1'b1;
 								if((BuffDelay[7:0] == PORT1[15:8]) && (BUFF_DATA[7:0] == PORT1[7:0]))	Port[1] <= 1'b1;
@@ -298,4 +303,3 @@ module aq_gemac_rx_decode(
 							TCPCheckSumOKReg[3], ICMPCheckSumOKReg[3], IPCheckSumOK, TypeUDP, TypeTCP, TypeICMP, TypeARP, TypeIPv4
 							};
 endmodule
-

@@ -2,9 +2,9 @@
 * PROJECT: AQUAXIS Giga Ethernet MAC
 * ----------------------------------------------------------------------
 *
-* Gigabit MAC
+* Gigabit MAC for Receive
 * File: aq_gemac_rx_buff.v
-* Copyright (C) 2007-2012 H.Ishihara, http://www.aquaxis.com/
+* Copyright (C) 2007-2013 H.Ishihara, http://www.aquaxis.com/
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the
@@ -29,9 +29,9 @@
 *   http://www.aquaxis.com/
 *   info(at)aquaxis.com or hidemi(at)sweetcafe.jp
 *
-* Create 2007/06/01 H.Ishihara
-* 1.02 2007/08/22 [MOD] Modify Full & Empty
-* 2011/04/24 rename
+* 2007/01/06 H.Ishihara	Create
+* 2007/08/22 H.Ishihara	Modify Full & Empty
+* 2011/04/24 H.Ishihara	rename
 */
 module aq_gemac_rx_buff(
 	input			RST_N,

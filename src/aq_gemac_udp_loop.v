@@ -1,4 +1,37 @@
-module ether_udp_loop(
+/*
+* PROJECT: AQUAXIS Giga Ethernet MAC
+* ----------------------------------------------------------------------
+*
+* UDP loop with Gigabit MAC
+* File: aq_gemac_udp_loop.v
+* Copyright (C) 2007-2013 H.Ishihara, http://www.aquaxis.com/
+*
+* Permission is hereby granted, free of charge, to any person obtaining
+* a copy of this software and associated documentation files (the
+* "Software"), to deal in the Software without restriction, including
+* without limitation the rights to use, copy, modify, merge, publish,
+* distribute, sublicense, and/or sell copies of the Software, and to
+* permit persons to whom the Software is furnished to do so, subject to
+* the following conditions:
+*
+* The above copyright notice and this permission notice shall be
+* included in all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+* NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+* LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+* OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+* WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+* For further information please contact.
+*   http://www.aquaxis.com/
+*   info(at)aquaxis.com or hidemi(at)sweetcafe.jp
+*
+* 2012/05/28 H.Ishihara	Create
+*/
+module aq_gemac_udp_loop(
 	RST,
 	CLK,
 
@@ -74,12 +107,17 @@ module ether_udp_loop(
 	parameter S_SEND12  = 5'd14;
 	parameter S_END	 = 5'd15;
 	parameter S_CHECK = 5'd16;
+	parameter S_DREAD0 = 5'd17;
+	parameter S_DREAD1 = 5'd18;
+	parameter S_VCHECK = 5'd19;
 
 	reg [15:0]	  SendLength;
 	reg			 SendWe, SendStart, SendEnd;
 	reg [31:0]	  SendData;
 	reg [31:0]	  UdpSendDelay;
 	reg			 UdpSendRead;
+
+	reg [3:0]    WaitCount;
 
 	// Tx State
 	always @(posedge CLK or negedge RST) begin
@@ -92,12 +130,13 @@ module ether_udp_loop(
 			SendLength	  <= 16'd0;
 			UdpSendDelay	<= 32'd0;
 			UdpSendRead	<= 1'b0;
+			WaitCount <= 4'd0;
 		end else begin
 			case(TxState)
 				S_IDLE: begin
 //					if(UDP_SEND_REQUEST) TxState <= S_WAIT;
 					if(RX_VALID) begin
-						TxState <= S_CHECK;
+						TxState <= S_VCHECK;
 //					end else if(!RX_EMPTY) begin
 //						TxState <= S_END;
 					end
@@ -107,16 +146,27 @@ module ether_udp_loop(
 					SendEnd		 <= 1'b0;
 					SendData		<= 32'd0;
 					UdpSendRead	 <= 1'b0;
+					WaitCount <= 4'd0;
+				end
+				S_VCHECK: begin
+					if(WaitCount == 4'd15) begin
+						if(RX_VALID) begin
+							TxState <= S_CHECK;
+						end else begin
+							TxState <= S_IDLE;
+						end
+					end
+					WaitCount <= WaitCount - 4'd1;
 				end
 				S_CHECK: begin
 					if(RX_STATUS == 16'hB1C0) begin
 						if(UDP_PEER_ENABLE) begin
 							TxState <= S_WAIT;
 						end else begin
-							TxState <= S_END;
+							TxState <= S_DREAD0;
 						end
 					end else begin
-						TxState <= S_END;
+						TxState <= S_DREAD0;
 					end
 					SendLength	  <= RX_LENGTH - 16'd4;
 				end
@@ -235,6 +285,17 @@ module ether_udp_loop(
 					SendData		<= 32'd00000000;
 					UdpSendRead	 <= 1'b1;
 				end
+				S_DREAD0: begin
+					TxState <= S_DREAD1;
+					SendLength <= SendLength -16'd4;
+				end
+				S_DREAD1: begin
+						if(SendLength <= 16'd4) begin
+							TxState <= S_END;
+						end else begin
+							SendLength <= SendLength -16'd4;
+						end
+				end
 			endcase
 //			if(UDP_SEND_DATA_VALID) begin
 //				UdpSendDelay <= UDP_SEND_DATA;
@@ -265,7 +326,7 @@ module ether_udp_loop(
 					(TxState == S_SEND6) || (TxState == S_SEND7) ||
 					(TxState == S_SEND8) || (TxState == S_SEND9) ||
 					(TxState == S_SEND10) || (TxState == S_SEND11) ||
-					(TxState == S_SEND12) || (TxState == S_END)
+					(TxState == S_SEND12) || (TxState == S_END) || (TxState == S_DREAD1)
 					)?1'b1:1'b0;
 
 	assign STATUS[15:4] = 12'd0;
