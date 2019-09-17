@@ -172,8 +172,10 @@ module arty(
 		.SEND_REQUEST		(1'd0),
 		.SEND_LENGTH		(16'd0),
 		.SEND_BUSY			(),
-		.SEND_DSTPORT		(16'd0),
-		.SEND_SRCPORT		(16'd0),
+		.SEND_MAC_ADDRESS	(48'd0),
+		.SEND_IP_ADDRESS	(32'd0),
+		.SEND_DST_PORT		(16'd0),
+		.SEND_SRC_PORT		(16'd0),
 		.SEND_DATA_VALID	(1'd0),
 		.SEND_DATA_READ		(),
 		.SEND_DATA			(32'd0),
@@ -183,7 +185,10 @@ module arty(
 		.REC_LENGTH			(),
 		.REC_BUSY			(),
 		.REC_DATA_VALID		(),
-		.REC_DATA_READ		(1'd0),
+		.REC_SRC_MAC		(),
+		.REC_SRC_IP			(),
+		.REC_SRC_PORT		(),
+		.REC_DATA_READ		(1'd1),
 		.REC_DATA			()
 	);
 
@@ -220,7 +225,7 @@ module arty(
 	assign max_retry			= 4'd8;
 	assign random_time_meet	 = 1'b1;
 
-	ether_udp_loop u_ether_udp_loop(
+	aq_gemac_udp_loop u_aq_gemac_udp_loop(
 		.RST(RST_N),
 		.CLK(CLK100MHZ),
 
@@ -249,43 +254,5 @@ module arty(
 
 		.STATUS()
 	);
-
-	// LED
-
-//	reg [31:0]  pci_cnt;
-//	reg		 pci_led;
-//	always @(posedge pci_clk or negedge RST_N) begin
-//		if(!RST_N) begin
-//			pci_cnt[31:0]   <= 32'd0;
-//			pci_led		 <= 1'b0;
-//		end else begin
-//			if(pci_cnt[31:0] == (33000000/2 -1)) begin
-//				pci_cnt[31:0]   <= 32'd0;
-//				pci_led		 <= ~pci_led;
-//			end else begin
-//				pci_cnt[31:0]   <= pci_cnt[31:0] + 32'd1;
-//			end
-//		end
-//	end
-/*
-	reg		last_rx, last_tx;
-	always @(posedge CLK100M or negedge RST_N) begin
-		if(!RST_N) begin
-			last_rx <= 1'b0;
-			last_tx <= 1'b0;
-		end else begin
-			if(rx_buff_re & !erx_buff_re) begin
-				last_rx <= 1'b1;
-			end else if(erx_buff_re) begin
-				last_rx <= 1'b0;
-			end
-			if(tx_buff_we & !etx_buff_we) begin
-				last_tx <= 1'b1;
-			end else if(etx_buff_we) begin
-				last_tx <= 1'b0;
-			end
-		end
-	end
-*/
 
 endmodule
